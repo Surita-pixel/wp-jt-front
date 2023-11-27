@@ -5,7 +5,12 @@
             <form @submit.prevent="submitForm">
                 <input type="text" id="message" v-model="message" />
                 <button type="submit">Enviar Mensaje al Servidor</button>
+
             </form>
+            <div v-if="qr" class="qr">
+                <!-- Utiliza el componente vue-qrcode para mostrar el código QR -->
+                <vueQr :text="qr"/>
+            </div>
             <p v-text="mensajeServer"></p>
             <h2>
                 contactos
@@ -20,17 +25,19 @@
     </div>
 </template>
 <script setup>
-import { ref, onMounted, onBeforeUnmount } from 'vue';
-
+import { ref, onMounted, onBeforeUnmount, defineComponent } from 'vue';
+import  vueQr from 'vue-qr/src/packages/vue-qr.vue'
 const connected = ref(false);
 const mensajeServer = ref("")
+const message = ref('');
 const contacts = ref([])
+const qr = ref("")
 let contactsLimit = 10
 let socket = null;
 
 const connectWebSocket = () => {
     // Reemplaza 'ws://tu-servidor-websocket-url' con la URL real de tu servidor WebSocket
-    socket = new WebSocket('ws://localhost:8099');
+    socket = new WebSocket('ws://158.220.116.166:8099');
 
     socket.onopen = () => {
         console.log('Conexión establecida');
@@ -38,8 +45,18 @@ const connectWebSocket = () => {
     };
 
     socket.onmessage = (event) => {
-        mensajeServer.value = event.data
-        console.log('Mensaje del servidor:', event.data);
+
+        let mensajeServidor = JSON.parse(event.data)
+        console.log(mensajeServidor)
+        if (mensajeServidor.qr) {
+            qr.value = mensajeServidor.qr
+            console.log('Mensaje del servidor:', qr.value);
+        }
+        else {
+            mensajeServer.value = event.data
+
+        }
+
         // Manejar el mensaje recibido del servidor según tus necesidades
     };
 
@@ -52,13 +69,13 @@ const connectWebSocket = () => {
 const sendMessage = () => {
     if (socket && connected.value && message.value.trim() !== '') {
         // Enviar el mensaje al servidor
-        socket.send(JSON.stringify({"message":message.value}));
+        socket.send(JSON.stringify({ "message": message.value }));
         // Puedes restablecer el campo del formulario después de enviar el mensaje
         message.value = '';
     }
 };
-const getContacts =(limit)=>{
-    let mensajeContactos = {"message":"obtenerContactos", "limit":limit}
+const getContacts = (limit) => {
+    let mensajeContactos = { "message": "obtenerContactos", "limit": limit }
     socket.send(JSON.stringify(mensajeContactos))
 }
 
@@ -77,5 +94,23 @@ onBeforeUnmount(() => {
         socket.close();
     }
 });
+const setup = () => {
+    return {
+        vueQr,
+        connected,
+        mensajeServer,
+        message,
+        contacts,
+        qr,
+        contactsLimit,
+        socket,
+        connectWebSocket,
+        sendMessage,
+        getContacts,
+        submitForm,
+        onMounted,
+        onBeforeUnmount
+    };
+};
 </script>
 <style></style>
